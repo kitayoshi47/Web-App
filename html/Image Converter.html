@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スマート画像リサイズ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #f8fafc;
+        }
+        .drop-zone {
+            transition: all 0.3s ease;
+            border: 2px dashed #cbd5e1;
+        }
+        .drop-zone.active {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .preview-container {
+            max-height: 350px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            border-radius: 0.75rem;
+        }
+        #preview-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 text-gray-800">
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        <!-- Header -->
+        <div class="bg-indigo-600 p-6 text-white text-center">
+            <h1 class="text-2xl font-bold">スマート画像リサイズ</h1>
+            <!-- <p class="text-indigo-100 mt-2">形式変換も自由自在。ブラウザ完結で安心です</p> -->
+        </div>
+
+        <div class="p-6 md:p-10">
+            <!-- Upload Area -->
+            <div id="drop-zone" class="drop-zone rounded-xl p-10 text-center cursor-pointer mb-8">
+                <input type="file" id="file-input" class="hidden" accept="image/png, image/jpeg">
+                <div id="upload-prompt">
+                    <div class="text-5xl mb-4">🖼️</div>
+                    <p class="text-lg font-medium text-gray-700">画像をここにドラッグ＆ドロップ</p>
+                    <p class="text-sm text-gray-500 mt-2">または、クリックしてファイルを選択</p>
+                </div>
+            </div>
+
+            <!-- Editor Area -->
+            <div id="editor-area" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Left: Preview -->
+                <div class="space-y-4">
+                    <h2 class="font-bold flex items-center">
+                        <span class="mr-2">👀</span> プレビュー
+                    </h2>
+                    <div class="preview-container border border-gray-200">
+                        <img id="preview-image" src="" alt="Preview">
+                    </div>
+                    <div class="text-center text-sm text-gray-500">
+                        元のサイズ: <span id="original-dims">-</span>
+                    </div>
+                </div>
+
+                <!-- Right: Controls -->
+                <div class="space-y-5 bg-gray-50 p-6 rounded-xl border border-gray-100">
+                    <h2 class="font-bold flex items-center border-b pb-2">
+                        <span class="mr-2">⚙️</span> カスタマイズ
+                    </h2>
+
+                    <!-- Resize Settings -->
+                    <div class="space-y-4">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">サイズ変更</h3>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">
+                                倍率: <span id="scale-value" class="text-indigo-600 font-bold">50</span>%
+                            </label>
+                            <input type="range" id="scale-slider" min="1" max="100" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">幅 (px)</label>
+                                <input type="number" id="width-input" class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">高さ (px)</label>
+                                <input type="number" id="height-input" class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Output Format Settings -->
+                    <div class="space-y-4 pt-4 border-t border-gray-200">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">保存設定</h3>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700">保存形式</label>
+                            <div class="flex gap-4">
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" name="format" value="image/jpeg" checked class="w-4 h-4 text-indigo-600">
+                                    <span class="ml-2 text-sm">JPEG</span>
+                                </label>
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" name="format" value="image/png" class="w-4 h-4 text-indigo-600">
+                                    <span class="ml-2 text-sm">PNG</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Quality (Only for JPEG) -->
+                        <div id="quality-container">
+                            <label class="block text-sm font-medium mb-1">
+                                保存画質 (JPEGのみ): <span id="quality-value" class="text-indigo-600 font-bold">95</span>%
+                            </label>
+                            <input type="range" id="quality-slider" min="1" max="100" value="95" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                            <p class="text-[10px] text-gray-400 mt-1">※値を下げるとファイル容量が軽くなります</p>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 space-y-3">
+                        <button id="download-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transform transition active:scale-95 flex items-center justify-center">
+                            <span class="mr-2">⬇️</span> 保存する
+                        </button>
+                        <button id="reset-btn" class="w-full bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 py-2 px-6 rounded-lg transition text-sm">
+                            別の画像を選ぶ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 bg-gray-50 border-t border-gray-100 text-center text-xs text-gray-400">
+            写真はブラウザ内で処理され、サーバーに送信されることはありません。
+        </div>
+    </div>
+
+    <canvas id="canvas" class="hidden"></canvas>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const editorArea = document.getElementById('editor-area');
+        const previewImage = document.getElementById('preview-image');
+        const originalDimsDisplay = document.getElementById('original-dims');
+        const scaleSlider = document.getElementById('scale-slider');
+        const scaleValue = document.getElementById('scale-value');
+        const widthInput = document.getElementById('width-input');
+        const heightInput = document.getElementById('height-input');
+        const qualitySlider = document.getElementById('quality-slider');
+        const qualityValue = document.getElementById('quality-value');
+        const qualityContainer = document.getElementById('quality-container');
+        const downloadBtn = document.getElementById('download-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let originalImage = new Image();
+        let currentFilename = "";
+        let originalWidth = 0;
+        let originalHeight = 0;
+        let aspectRatio = 1;
+
+        // Event: File selection
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('active'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('active'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('active');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        // Event: Controls
+        scaleSlider.addEventListener('input', (e) => {
+            const scale = e.target.value / 100;
+            scaleValue.textContent = e.target.value;
+            widthInput.value = Math.round(originalWidth * scale);
+            heightInput.value = Math.round(originalHeight * scale);
+        });
+
+        widthInput.addEventListener('input', () => {
+            const val = parseInt(widthInput.value) || 1;
+            heightInput.value = Math.round(val / aspectRatio);
+            updateScaleDisplay();
+        });
+
+        heightInput.addEventListener('input', () => {
+            const val = parseInt(heightInput.value) || 1;
+            widthInput.value = Math.round(val * aspectRatio);
+            updateScaleDisplay();
+        });
+
+        qualitySlider.addEventListener('input', (e) => {
+            qualityValue.textContent = e.target.value;
+        });
+
+        document.querySelectorAll('input[name="format"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                qualityContainer.style.opacity = e.target.value === 'image/jpeg' ? '1' : '0.3';
+                qualitySlider.disabled = e.target.value !== 'image/jpeg';
+            });
+        });
+
+        resetBtn.addEventListener('click', () => {
+            editorArea.classList.add('hidden');
+            dropZone.classList.remove('hidden');
+            fileInput.value = "";
+        });
+
+        downloadBtn.addEventListener('click', downloadResizedImage);
+
+        // Core Functions
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) return;
+            currentFilename = file.name;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                originalImage.onload = () => {
+                    originalWidth = originalImage.width;
+                    originalHeight = originalImage.height;
+                    aspectRatio = originalWidth / originalHeight;
+                    originalDimsDisplay.textContent = `${originalWidth} x ${originalHeight} px`;
+                    scaleSlider.value = 75;
+                    scaleValue.textContent = "75";
+                    widthInput.value = originalWidth * (scaleSlider.value / 100);
+                    heightInput.value = originalHeight * (scaleSlider.value / 100);
+                    previewImage.src = e.target.result;
+                    dropZone.classList.add('hidden');
+                    editorArea.classList.remove('hidden');
+                };
+                originalImage.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updateScaleDisplay() {
+            const scale = (widthInput.value / originalWidth) * 100;
+            scaleSlider.value = Math.min(Math.max(scale, 1), 100);
+            scaleValue.textContent = Math.round(scale);
+        }
+
+        function downloadResizedImage() {
+            const targetWidth = parseInt(widthInput.value);
+            const targetHeight = parseInt(heightInput.value);
+            const format = document.querySelector('input[name="format"]:checked').value;
+            const quality = parseInt(qualitySlider.value) / 100;
+
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            
+            // Fill background white for JPEG to avoid transparency turning black
+            if (format === 'image/jpeg') {
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(originalImage, 0, 0, targetWidth, targetHeight);
+
+            const dataUrl = canvas.toDataURL(format, quality);
+            const link = document.createElement('a');
+            const ext = format === 'image/png' ? 'png' : 'jpg';
+            const baseName = currentFilename.substring(0, currentFilename.lastIndexOf('.')) || "resized_image";
+            
+            link.download = `${baseName}_resized.${ext}`;
+            link.href = dataUrl;
+            link.click();
+
+            showToast(`保存完了！形式: ${ext.toUpperCase()}`);
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = "fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-8 py-3 rounded-full shadow-2xl z-50 text-sm transition-opacity duration-500";
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 500);
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
